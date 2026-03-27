@@ -1,0 +1,9 @@
+#!/bin/sh
+
+# Backup config before upgrade
+PKG_DIR="/var/packages/SynoTelegramBot/target"
+if [ -f "${PKG_DIR}/config.toml" ]; then
+    cp "${PKG_DIR}/config.toml" /tmp/syno-bot-config-backup.toml
+fi
+
+exit 0

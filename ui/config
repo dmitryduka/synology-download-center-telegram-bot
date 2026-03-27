@@ -1,0 +1,13 @@
+{
+    "SynoTelegramBot.js": {
+        "SYNO.SDS.App.SynoTelegramBot.Instance": {
+            "type": "app",
+            "title": "Telegram Download Bot",
+            "appWindow": "SYNO.SDS.App.SynoTelegramBot.Instance",
+            "allUsers": false,
+            "allowMultiInstance": false,
+            "hidden": false,
+            "icon": "images/icon_{0}.png"
+        }
+    }
+}

@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Telegram Download Bot</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f5f5f5;color:#333}
+.app{max-width:600px;margin:0 auto;padding:24px}
+h1{font-size:22px;font-weight:600;margin-bottom:20px}
+.card{background:#fff;border-radius:8px;padding:20px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.card h2{font-size:14px;font-weight:600;color:#057FEB;text-transform:uppercase;letter-spacing:.5px;margin-bottom:14px}
+.status-row{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.dot.green{background:#34c759;box-shadow:0 0 6px rgba(52,199,89,.4)}
+.dot.red{background:#ff3b30;box-shadow:0 0 6px rgba(255,59,48,.4)}
+.status-label{font-size:13px;color:#666}
+.status-value{font-size:13px;font-weight:500;margin-left:auto}
+.field{margin-bottom:14px}
+.field label{display:block;font-size:13px;font-weight:500;color:#555;margin-bottom:4px}
+.field input{width:100%;padding:8px 10px;border:1px solid #ccc;border-radius:4px;font-size:14px}
+.field input:focus{border-color:#057FEB;outline:none}
+.hint{font-size:11px;color:#999;margin-top:2px}
+.actions{display:flex;align-items:center;gap:12px;margin-top:4px}
+.btn{padding:10px 24px;border:none;border-radius:6px;cursor:pointer;font-size:14px;font-weight:500;background:#057FEB;color:#fff}
+.btn:hover{background:#046fd4}
+.btn:disabled{background:#a0c8f0}
+.msg{font-size:13px}
+.msg.ok{color:#34c759}
+.msg.err{color:#ff3b30}
+.note{font-size:12px;color:#888;margin-top:8px;line-height:1.5}
+</style>
+</head>
+<body>
+<div class="app">
+<h1>Telegram Download Bot</h1>
+
+<div class="card">
+<h2>Status</h2>
+<div class="status-row">
+<div class="dot" id="dotBot"></div>
+<span class="status-label">Bot</span>
+<span class="status-value" id="botStatus">Checking...</span>
+</div>
+<div class="status-row">
+<span class="status-label">Version</span>
+<span class="status-value" id="version">—</span>
+</div>
+<div class="status-row">
+<span class="status-label">Watch Folder</span>
+<span class="status-value" id="watchFolder">—</span>
+</div>
+</div>
+
+<div class="card">
+<h2>Telegram Settings</h2>
+<div class="field">
+<label>Bot Token</label>
+<input id="token" placeholder="Enter new token to change">
+<div class="hint">Current: <span id="tokenMask">—</span></div>
+</div>
+<div class="field">
+<label>Authorized User IDs</label>
+<input id="users" placeholder="Comma-separated Telegram user IDs">
+</div>
+</div>
+
+<div class="card">
+<h2>Watch Folder</h2>
+<div class="field">
+<label>Download Station auto-download folder</label>
+<input id="folder">
+<div class="hint">Must match the folder configured in Download Station &gt; Settings &gt; BT &gt; Auto-download</div>
+</div>
+</div>
+
+<div class="actions">
+<button class="btn" id="saveBtn" onclick="save()">Save Settings</button>
+<span class="msg" id="saveMsg"></span>
+</div>
+<div class="note">After changing the bot token, restart the package from Package Center for the change to take effect.</div>
+</div>
+
+<script>
+async function load(){
+ try{
+  var r=await fetch('/api/status');var d=await r.json();
+  document.getElementById('dotBot').className='dot '+(d.bot_running?'green':'red');
+  document.getElementById('botStatus').textContent=d.bot_running?'Running':'Stopped';
+  document.getElementById('version').textContent='v'+d.version;
+  document.getElementById('watchFolder').textContent=d.watch_folder;
+ }catch(e){
+  document.getElementById('dotBot').className='dot red';
+  document.getElementById('botStatus').textContent='Unreachable';
+ }
+ try{
+  var r=await fetch('/api/config');var d=await r.json();
+  document.getElementById('tokenMask').textContent=d.bot_token_masked;
+  document.getElementById('users').value=d.authorized_users.join(', ');
+  document.getElementById('folder').value=d.watch_folder;
+ }catch(e){}
+}
+async function save(){
+ var btn=document.getElementById('saveBtn'),msg=document.getElementById('saveMsg');
+ btn.disabled=true;msg.textContent='';
+ var users=document.getElementById('users').value.split(',').map(function(s){return parseInt(s.trim())}).filter(function(n){return !isNaN(n)});
+ var payload={authorized_users:users,watch_folder:document.getElementById('folder').value};
+ var tok=document.getElementById('token').value.trim();
+ if(tok)payload.bot_token=tok;
+ try{
+  var r=await fetch('/api/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+  if(r.ok){msg.textContent='Saved!';msg.className='msg ok';document.getElementById('token').value='';load();}
+  else{msg.textContent='Save failed';msg.className='msg err';}
+ }catch(e){msg.textContent='Error: '+e.message;msg.className='msg err';}
+ btn.disabled=false;
+}
+load();setInterval(load,15000);
+</script>
+</body>
+</html>

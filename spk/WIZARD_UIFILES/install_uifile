@@ -1,0 +1,46 @@
+[
+    {
+        "step_title": "Telegram Configuration",
+        "items": [
+            {
+                "type": "textfield",
+                "desc": "Enter the bot token you received from @BotFather on Telegram.",
+                "subitems": [{
+                    "key": "wizard_telegram_token",
+                    "desc": "Bot Token",
+                    "defaultValue": "",
+                    "validator": {
+                        "allowBlank": false,
+                        "minLength": 10
+                    }
+                }]
+            },
+            {
+                "type": "textfield",
+                "desc": "Your Telegram user ID (find it by messaging @userinfobot). Separate multiple IDs with commas.",
+                "subitems": [{
+                    "key": "wizard_authorized_users",
+                    "desc": "Authorized User IDs",
+                    "defaultValue": "",
+                    "validator": {
+                        "allowBlank": false
+                    }
+                }]
+            }
+        ]
+    },
+    {
+        "step_title": "Download Station Watch Folder",
+        "items": [
+            {
+                "type": "textfield",
+                "desc": "Path to the folder that Download Station monitors for .torrent files. You must enable auto-download in Download Station settings and point it to this same folder.",
+                "subitems": [{
+                    "key": "wizard_watch_folder",
+                    "desc": "Watch Folder",
+                    "defaultValue": "/volume1/downloads/watch"
+                }]
+            }
+        ]
+    }
+]

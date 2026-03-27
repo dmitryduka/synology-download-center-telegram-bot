@@ -1,0 +1,18 @@
+# Build artifacts
+/target/
+/spk/package/
+/spk/package.tgz
+*.spk
+
+# Vue.js build
+/ui/node_modules/
+/ui/dist/
+
+# Credentials and personal config
+config.toml
+syno-credentials.txt
+
+# OS files
+.DS_Store
+._*
+Thumbs.db

@@ -1,0 +1,41 @@
+#!/bin/sh
+
+PKG_DIR="/var/packages/SynoTelegramBot/target"
+CONFIG_FILE="${PKG_DIR}/config.toml"
+
+# Parse authorized_users: convert comma-separated string to TOML array
+USERS_CSV="${wizard_authorized_users}"
+USERS_TOML="["
+first=true
+IFS=','
+for uid in $USERS_CSV; do
+    uid=$(echo "$uid" | tr -d ' ')
+    if [ -n "$uid" ]; then
+        if [ "$first" = true ]; then
+            first=false
+        else
+            USERS_TOML="${USERS_TOML}, "
+        fi
+        USERS_TOML="${USERS_TOML}${uid}"
+    fi
+done
+USERS_TOML="${USERS_TOML}]"
+unset IFS
+
+WATCH_FOLDER="${wizard_watch_folder:-/volume1/downloads/watch}"
+
+cat > "${CONFIG_FILE}" <<EOF
+[telegram]
+bot_token = "${wizard_telegram_token}"
+authorized_users = ${USERS_TOML}
+
+[watch]
+folder = "${WATCH_FOLDER}"
+EOF
+
+chmod 600 "${CONFIG_FILE}"
+
+# Create the watch folder if it doesn't exist
+mkdir -p "${WATCH_FOLDER}" 2>/dev/null
+
+exit 0

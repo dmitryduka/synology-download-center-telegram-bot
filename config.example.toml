@@ -1,0 +1,8 @@
+[telegram]
+bot_token = "YOUR_BOT_TOKEN_HERE"
+authorized_users = [123456789]
+
+[watch]
+# Folder that Download Station monitors for .torrent files.
+# Configure this in Download Station > Settings > BT > Auto-download folder.
+folder = "/volume1/downloads/watch"

@@ -1,0 +1,11 @@
+#!/bin/sh
+
+# Restore config after upgrade
+PKG_DIR="/var/packages/SynoTelegramBot/target"
+if [ -f /tmp/syno-bot-config-backup.toml ]; then
+    cp /tmp/syno-bot-config-backup.toml "${PKG_DIR}/config.toml"
+    chmod 600 "${PKG_DIR}/config.toml"
+    rm -f /tmp/syno-bot-config-backup.toml
+fi
+
+exit 0

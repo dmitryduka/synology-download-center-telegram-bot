@@ -1,0 +1,73 @@
+#!/bin/sh
+
+PKG_DIR="/var/packages/SynoTelegramBot/target"
+PID_FILE="${PKG_DIR}/syno-bot.pid"
+LOG_FILE="${PKG_DIR}/syno-bot.log"
+BIN="${PKG_DIR}/bin/syno-bot"
+CONFIG="${PKG_DIR}/config.toml"
+
+start() {
+    if [ -f "${PID_FILE}" ]; then
+        pid=$(cat "${PID_FILE}")
+        if kill -0 "$pid" 2>/dev/null; then
+            echo "Already running (PID $pid)"
+            return 0
+        fi
+        rm -f "${PID_FILE}"
+    fi
+
+    "${BIN}" "${CONFIG}" >> "${LOG_FILE}" 2>&1 &
+    echo $! > "${PID_FILE}"
+    echo "Started (PID $(cat ${PID_FILE}))"
+}
+
+stop() {
+    if [ -f "${PID_FILE}" ]; then
+        pid=$(cat "${PID_FILE}")
+        if kill -0 "$pid" 2>/dev/null; then
+            kill "$pid"
+            # Wait up to 10 seconds for graceful shutdown
+            i=0
+            while [ $i -lt 10 ] && kill -0 "$pid" 2>/dev/null; do
+                sleep 1
+                i=$((i + 1))
+            done
+            if kill -0 "$pid" 2>/dev/null; then
+                kill -9 "$pid"
+            fi
+        fi
+        rm -f "${PID_FILE}"
+    fi
+}
+
+status() {
+    if [ -f "${PID_FILE}" ]; then
+        pid=$(cat "${PID_FILE}")
+        if kill -0 "$pid" 2>/dev/null; then
+            exit 0
+        fi
+    fi
+    exit 3
+}
+
+case "$1" in
+    start)
+        start
+        ;;
+    stop)
+        stop
+        ;;
+    status)
+        status
+        ;;
+    prestart)
+        if [ ! -f "${CONFIG}" ]; then
+            echo "Config file not found. Please reinstall the package."
+            exit 1
+        fi
+        ;;
+    prestop)
+        ;;
+esac
+
+exit 0

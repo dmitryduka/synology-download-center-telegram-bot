@@ -1,0 +1,14 @@
+{
+    ".url": {
+        "com.synotelegrambot.app": {
+            "title": "Telegram Download Bot",
+            "desc": "Configure the Telegram Download Bot",
+            "icon": "images/icon_{0}.png",
+            "type": "url",
+            "protocol": "http",
+            "port": "8008",
+            "url": "/",
+            "allUsers": false
+        }
+    }
+}
