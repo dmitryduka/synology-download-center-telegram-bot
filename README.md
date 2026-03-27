@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/icon.png" width="128" alt="Telegram Download Bot icon">
+</p>
+
 # Synology Download Center Telegram Bot
 
 A Telegram bot for Synology NAS that lets you send `.torrent` files from Telegram to start downloads via Download Station. Packaged as a native Synology SPK with a DSM-integrated settings UI — install it from Package Center, configure through the native DSM app, and you're ready to go.
