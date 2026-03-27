@@ -23,25 +23,21 @@ ui:
 spk: binary ui
 	@echo "==> Assembling SPK package..."
 	@mkdir -p $(PACKAGE_DIR)/bin $(PACKAGE_DIR)/ui/images
-	@# Copy binary
 	@cp $(BINARY) $(PACKAGE_DIR)/bin/syno-bot
-	@# Copy UI files (DSM desktop integration)
+	@cp $(UI_DIST)/SynoTelegramBot.js $(PACKAGE_DIR)/ui/
+	@cp $(UI_DIST)/style.css $(PACKAGE_DIR)/ui/
 	@cp ui/config $(PACKAGE_DIR)/ui/
-	@cp ui/redirect.html $(PACKAGE_DIR)/ui/
-	@# TODO: Add proper icon files. For now create placeholders.
+	@# Placeholder icon (replace with a real icon)
 	@if [ ! -f $(PACKAGE_DIR)/ui/images/icon_64.png ]; then \
 		printf '\x89PNG\r\n\x1a\n' > $(PACKAGE_DIR)/ui/images/icon_64.png; \
 	fi
-	@# Create package.tgz
 	@cd $(PACKAGE_DIR) && tar czf ../package.tgz *
-	@# Make scripts executable
 	@chmod +x $(SPK_DIR)/scripts/*
-	@# Create the .spk file
 	@cd $(SPK_DIR) && tar cf ../$(SPK_NAME) INFO package.tgz scripts conf WIZARD_UIFILES
 	@rm -f $(SPK_DIR)/package.tgz
 	@echo "==> Built $(SPK_NAME) ($$(du -h $(SPK_NAME) | cut -f1))"
 
-# Deploy to NAS (requires sshpass and NAS accessibility)
+# Deploy to NAS (requires scp access)
 install: spk
 	@echo "==> Uploading SPK to NAS..."
 	scp $(SPK_NAME) $(NAS_USER)@$(NAS_HOST):/tmp/

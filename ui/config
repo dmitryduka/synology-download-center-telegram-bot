@@ -1,9 +1,9 @@
 {
     "SynoTelegramBot.js": {
-        "SYNO.SDS.App.SynoTelegramBot.Instance": {
+        "SYNO.SDS.TelegramBot.Instance": {
             "type": "app",
             "title": "Telegram Download Bot",
-            "appWindow": "SYNO.SDS.App.SynoTelegramBot.Instance",
+            "appWindow": "SYNO.SDS.TelegramBot.Instance",
             "allUsers": false,
             "allowMultiInstance": false,
             "hidden": false,

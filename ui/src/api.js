@@ -1,38 +1,32 @@
-const API_NAME = 'SYNO.SynoTelegramBot.API';
-const API_VERSION = 1;
-
-function webapiUrl(method) {
-    return '/webapi/entry.cgi?api=' + API_NAME + '&version=' + API_VERSION + '&method=' + method;
-}
-
-export async function apiCall(method, body) {
-    const url = webapiUrl(method);
-    const opts = {};
-    if (body) {
-        opts.method = 'POST';
-        opts.headers = { 'Content-Type': 'application/json' };
-        opts.body = JSON.stringify(body);
-    }
-    const resp = await fetch(url, opts);
-    const json = await resp.json();
-    if (json.success && json.data) {
-        return json.data;
-    }
-    throw new Error(json.error ? 'API error ' + json.error.code : 'Unknown error');
-}
+const DATA_BASE = '/webman/3rdparty/SynoTelegramBot/data';
 
 export async function getStatus() {
-    return apiCall('get_status');
+    const resp = await fetch(DATA_BASE + '/status.json?_=' + Date.now());
+    if (!resp.ok) throw new Error('Status unavailable');
+    return resp.json();
 }
 
 export async function getConfig() {
-    return apiCall('get_config');
+    const resp = await fetch(DATA_BASE + '/config_read.json?_=' + Date.now());
+    if (!resp.ok) throw new Error('Config unavailable');
+    return resp.json();
 }
 
-export async function setConfig(payload) {
-    return apiCall('set_config', payload);
-}
+export async function saveConfig(payload, watchFolder) {
+    const blob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
+    const form = new FormData();
+    form.append('api', 'SYNO.FileStation.Upload');
+    form.append('version', '2');
+    form.append('method', 'upload');
+    form.append('path', watchFolder);
+    form.append('create_parents', 'true');
+    form.append('overwrite', 'true');
+    form.append('file', blob, 'config_update.json');
 
-export async function getActivity() {
-    return apiCall('get_activity');
+    const resp = await fetch('/webapi/entry.cgi', { method: 'POST', body: form });
+    const result = await resp.json();
+    if (!result.success) {
+        throw new Error('Upload failed (code ' + (result.error && result.error.code) + ')');
+    }
+    return result;
 }

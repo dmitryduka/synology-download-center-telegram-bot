@@ -7,6 +7,8 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
+const THIRDPARTY_BASE: &str = "/usr/syno/synoman/webman/3rdparty/SynoTelegramBot";
+
 #[tokio::main]
 async fn main() {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
@@ -32,14 +34,22 @@ async fn main() {
         config.telegram.authorized_users,
     );
 
-    let shared_config = Arc::new(RwLock::new(config.clone()));
+    let thirdparty_dir = PathBuf::from(THIRDPARTY_BASE);
+    if thirdparty_dir.exists() {
+        if let Err(e) = web::setup_tmpfs_bridge(&thirdparty_dir).await {
+            log::warn!("tmpfs bridge failed: {}", e);
+        }
+    }
 
-    let web_state = web::WebState {
+    let shared_config = Arc::new(RwLock::new(config.clone()));
+    let bridge = web::BridgeState {
         config: shared_config,
         config_path,
+        watch_folder: PathBuf::from(&config.watch.folder),
     };
 
-    tokio::spawn(web::run_web_server(web_state));
+    tokio::spawn(web::run_status_writer(bridge.clone()));
+    tokio::spawn(web::run_config_watcher(bridge));
 
     telegram::bot::run_bot(config).await;
 }

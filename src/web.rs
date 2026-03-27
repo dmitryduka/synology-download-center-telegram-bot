@@ -1,43 +1,35 @@
-use axum::{
-    extract::State,
-    http::StatusCode,
-    response::{Html, Json},
-    routing::{get, post},
-    Router,
-};
-use serde::{Deserialize, Serialize};
-use std::net::SocketAddr;
-use std::path::PathBuf;
+use serde::Serialize;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use std::time::Duration;
 use tokio::sync::RwLock;
 
 use crate::config::Config;
 
+const TMPFS_DIR: &str = "/tmp/synobot";
+const STATUS_FILE: &str = "status.json";
+const CONFIG_FILE: &str = "config_read.json";
+const CONFIG_UPDATE_FILE: &str = "config_update.json";
+
 #[derive(Clone)]
-pub struct WebState {
+pub struct BridgeState {
     pub config: Arc<RwLock<Config>>,
     pub config_path: PathBuf,
+    pub watch_folder: PathBuf,
 }
 
 #[derive(Serialize)]
-struct StatusResponse {
+struct StatusData {
     bot_running: bool,
     version: String,
     watch_folder: String,
 }
 
 #[derive(Serialize)]
-struct ConfigResponse {
+struct ConfigData {
     bot_token_masked: String,
     authorized_users: Vec<u64>,
     watch_folder: String,
-}
-
-#[derive(Deserialize)]
-struct ConfigUpdateRequest {
-    bot_token: Option<String>,
-    authorized_users: Option<Vec<u64>>,
-    watch_folder: Option<String>,
 }
 
 fn mask_token(token: &str) -> String {
@@ -47,68 +39,64 @@ fn mask_token(token: &str) -> String {
     format!("{}...{}", &token[..6], &token[token.len() - 4..])
 }
 
-async fn serve_ui() -> Html<&'static str> {
-    Html(include_str!("ui.html"))
+/// Create /tmp/synobot and symlink it from the 3rdparty directory.
+pub async fn setup_tmpfs_bridge(thirdparty_dir: &Path) -> Result<(), String> {
+    let tmpfs = Path::new(TMPFS_DIR);
+    tokio::fs::create_dir_all(tmpfs)
+        .await
+        .map_err(|e| format!("create {}: {}", TMPFS_DIR, e))?;
+
+    let link_path = thirdparty_dir.join("data");
+    let _ = tokio::fs::remove_file(&link_path).await;
+    let _ = tokio::fs::remove_dir(&link_path).await;
+
+    #[cfg(unix)]
+    tokio::fs::symlink(tmpfs, &link_path)
+        .await
+        .map_err(|e| format!("symlink: {}", e))?;
+
+    log::info!("tmpfs bridge: {} -> {}", link_path.display(), TMPFS_DIR);
+    Ok(())
 }
 
-async fn get_status(State(state): State<WebState>) -> Json<StatusResponse> {
-    let config = state.config.read().await;
-    Json(StatusResponse {
-        bot_running: true,
-        version: env!("CARGO_PKG_VERSION").to_string(),
-        watch_folder: config.watch.folder.clone(),
-    })
+/// Write status and config to tmpfs periodically.
+pub async fn run_status_writer(state: BridgeState) {
+    let tmpfs = Path::new(TMPFS_DIR);
+    loop {
+        let config = state.config.read().await;
+        let status = StatusData {
+            bot_running: true,
+            version: env!("CARGO_PKG_VERSION").to_string(),
+            watch_folder: config.watch.folder.clone(),
+        };
+        let config_data = ConfigData {
+            bot_token_masked: mask_token(&config.telegram.bot_token),
+            authorized_users: config.telegram.authorized_users.clone(),
+            watch_folder: config.watch.folder.clone(),
+        };
+        drop(config);
+
+        if let Ok(j) = serde_json::to_string(&status) { let _ = tokio::fs::write(tmpfs.join(STATUS_FILE), j).await; }
+        if let Ok(j) = serde_json::to_string(&config_data) { let _ = tokio::fs::write(tmpfs.join(CONFIG_FILE), j).await; }
+
+        tokio::time::sleep(Duration::from_secs(5)).await;
+    }
 }
 
-async fn get_config(State(state): State<WebState>) -> Json<ConfigResponse> {
-    let config = state.config.read().await;
-    Json(ConfigResponse {
-        bot_token_masked: mask_token(&config.telegram.bot_token),
-        authorized_users: config.telegram.authorized_users.clone(),
-        watch_folder: config.watch.folder.clone(),
-    })
-}
-
-async fn update_config(
-    State(state): State<WebState>,
-    Json(update): Json<ConfigUpdateRequest>,
-) -> Result<Json<serde_json::Value>, StatusCode> {
-    let mut config = state.config.write().await;
-
-    if let Some(token) = update.bot_token {
-        if !token.is_empty() && !token.contains("...") {
-            config.telegram.bot_token = token;
-        }
+/// Watch for config_update.json in the watch folder.
+pub async fn run_config_watcher(state: BridgeState) {
+    loop {
+        tokio::time::sleep(Duration::from_secs(3)).await;
+        let path = state.watch_folder.join(CONFIG_UPDATE_FILE);
+        if !path.exists() { continue; }
+        log::info!("Config update detected");
+        let content = match tokio::fs::read_to_string(&path).await { Ok(c) => c, Err(_) => { let _ = tokio::fs::remove_file(&path).await; continue; } };
+        let _ = tokio::fs::remove_file(&path).await;
+        let update: serde_json::Value = match serde_json::from_str(&content) { Ok(v) => v, Err(_) => continue };
+        let mut config = state.config.write().await;
+        if let Some(t) = update.get("bot_token").and_then(|v| v.as_str()) { if !t.is_empty() && !t.contains("...") { config.telegram.bot_token = t.to_string(); } }
+        if let Some(u) = update.get("authorized_users").and_then(|v| v.as_array()) { let p: Vec<u64> = u.iter().filter_map(|v| v.as_u64()).collect(); if !p.is_empty() { config.telegram.authorized_users = p; } }
+        if let Some(f) = update.get("watch_folder").and_then(|v| v.as_str()) { if !f.is_empty() { config.watch.folder = f.to_string(); } }
+        if let Err(e) = config.save(&state.config_path) { log::error!("Save failed: {}", e); } else { log::info!("Config saved"); }
     }
-    if let Some(users) = update.authorized_users {
-        config.telegram.authorized_users = users;
-    }
-    if let Some(folder) = update.watch_folder {
-        if !folder.is_empty() {
-            config.watch.folder = folder;
-        }
-    }
-
-    if let Err(e) = config.save(&state.config_path) {
-        log::error!("Failed to save config: {}", e);
-        return Err(StatusCode::INTERNAL_SERVER_ERROR);
-    }
-
-    log::info!("Config updated and saved");
-    Ok(Json(serde_json::json!({"success": true})))
-}
-
-pub async fn run_web_server(state: WebState) {
-    let app = Router::new()
-        .route("/", get(serve_ui))
-        .route("/api/status", get(get_status))
-        .route("/api/config", get(get_config))
-        .route("/api/config", post(update_config))
-        .with_state(state);
-
-    let addr = SocketAddr::from(([0, 0, 0, 0], 8008));
-    log::info!("Settings UI at http://0.0.0.0:{}", addr.port());
-
-    let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
-    axum::serve(listener, app).await.unwrap();
 }

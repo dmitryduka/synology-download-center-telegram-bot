@@ -1,8 +1,14 @@
 # Synology Download Center Telegram Bot
 
-A Telegram bot for Synology NAS that lets you send `.torrent` files from Telegram to start downloads via Download Station. Packaged as a native Synology SPK — install it from Package Center, configure through the built-in settings UI, and you're ready to go.
+A Telegram bot for Synology NAS that lets you send `.torrent` files from Telegram to start downloads via Download Station. Packaged as a native Synology SPK with a DSM-integrated settings UI — install it from Package Center, configure through the native DSM app, and you're ready to go.
 
 Tested on **Synology DS223** (RTD1619B), but should work on any ARM64-based Synology NAS running DSM 7.0+.
+
+## Screenshots
+
+| Status | Settings |
+|--------|----------|
+| ![Status tab](docs/images/page1.png) | ![Settings tab](docs/images/page2.png) |
 
 ## How It Works
 
@@ -10,7 +16,7 @@ Tested on **Synology DS223** (RTD1619B), but should work on any ARM64-based Syno
 2. The bot saves it to a watch folder on your NAS
 3. Download Station automatically picks it up and starts the download
 
-No Synology credentials are stored or required — the bot communicates with Download Station through the filesystem using its built-in auto-download (folder watch) feature.
+No Synology credentials are stored or required — the bot communicates with Download Station through the filesystem using its built-in auto-download (folder watch) feature. The settings UI runs as a native DSM desktop application, communicating with the bot through a RAM-backed (tmpfs) file bridge to avoid unnecessary disk writes.
 
 ## Setup
 
@@ -46,13 +52,14 @@ Message [@userinfobot](https://t.me/userinfobot) on Telegram. It will reply with
    - The watch folder path (must match what you set in Download Station)
 5. Start the package
 
-### 5. Configure via Settings UI
+### 5. Configure via DSM App
 
-After installation, click **Open** in Package Center (or find "Telegram Download Bot" in the DSM main menu) to access the settings page. From there you can change:
+After installation, find **"Telegram Download Bot"** in the DSM main menu (grid icon, top-left). It opens as a native DSM window where you can:
 
-- Telegram bot token
-- Authorized user IDs (comma-separated for multiple users)
-- Watch folder path
+- See bot status (running/stopped) and version
+- Change the Telegram bot token
+- Update authorized user IDs
+- Set the watch folder path
 
 ## Usage
 
@@ -81,7 +88,7 @@ make spk
 
 This will:
 1. Cross-compile the Rust binary for `aarch64-unknown-linux-musl`
-2. Build the Vue.js DSM UI with webpack
+2. Build the Vue.js DSM native app with webpack
 3. Assemble the `.spk` package
 
 The output is `SynoTelegramBot-0.1.0-rtd1619b.spk`.
@@ -100,21 +107,25 @@ Then install the `.spk` through Package Center's Manual Install.
 
 ```
 src/                    Rust source code
-  main.rs               Entry point
+  main.rs               Entry point, tmpfs bridge setup
   config.rs             TOML configuration
-  web.rs                Settings HTTP API (port 8008)
+  web.rs                tmpfs bridge: status/config writer + config watcher
   synology/watcher.rs   Torrent file dropper
   telegram/bot.rs       Telegram bot setup
   telegram/handlers.rs  Message handlers
-  ui.html               Embedded settings page
-ui/                     DSM UI integration
-  dsm/config            DSM desktop menu entry
+ui/                     DSM native Vue.js app
+  src/main.js           SYNO.namespace entry point
+  src/App.vue           App shell with tabs
+  src/components/       Status and Settings panels
+  src/api.js            Reads from tmpfs, writes via FileStation API
+  config                DSM app descriptor (type: app)
+  webpack.config.js     Build configuration
 spk/                    Synology package files
   INFO                  Package metadata
   conf/privilege        Package privilege config
   scripts/              Lifecycle scripts (start/stop/install)
   WIZARD_UIFILES/       Installation wizard
-webapi/                 CGI proxy (unused — reserved for future)
+assets/                 Source icon
 ```
 
 ## License
