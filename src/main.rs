@@ -1,4 +1,5 @@
 mod config;
+mod notifier;
 mod synology;
 mod telegram;
 mod web;
@@ -29,8 +30,8 @@ async fn main() {
     };
 
     log::info!(
-        "Config loaded. Watch folder: {}, Authorized users: {:?}",
-        config.watch.folder,
+        "Config loaded. Destinations: {:?}, Authorized users: {:?}",
+        config.destinations.aliases.keys().collect::<Vec<_>>(),
         config.telegram.authorized_users,
     );
 
@@ -42,14 +43,18 @@ async fn main() {
     }
 
     let shared_config = Arc::new(RwLock::new(config.clone()));
+    let dsm = synology::DsmApi::new();
+    let watch_folder = config.watch.as_ref().map(|w| w.folder.as_str()).unwrap_or("/volume1/watch");
+    let dropper = synology::TorrentDropper::new(watch_folder);
+
     let bridge = web::BridgeState {
-        config: shared_config,
+        config: shared_config.clone(),
         config_path,
-        watch_folder: PathBuf::from(&config.watch.folder),
+        dsm: dsm.clone(),
     };
 
     tokio::spawn(web::run_status_writer(bridge.clone()));
     tokio::spawn(web::run_config_watcher(bridge));
 
-    telegram::bot::run_bot(config).await;
+    telegram::bot::run_bot(config, shared_config, dsm, dropper).await;
 }

@@ -5,4 +5,14 @@ authorized_users = [123456789]
 [watch]
 # Folder that Download Station monitors for .torrent files.
 # Configure this in Download Station > Settings > BT > Auto-download folder.
-folder = "/volume1/downloads/watch"
+folder = "/volume1/watch"
+
+[destinations]
+# Named destinations that appear as buttons when sending a torrent.
+# Values are shared folder paths relative to /volume1/.
+movies = "video/movies"
+tvseries = "video/tvseries"
+default = "downloads"
+
+[notifications]
+poll_interval_secs = 15

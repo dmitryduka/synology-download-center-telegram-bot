@@ -1,20 +1,17 @@
 <template>
     <v-app-instance class-name="SYNO.SDS.TelegramBot.Instance">
         <v-app-window
-            width="600"
-            height="480"
+            width="700"
+            height="520"
             ref="appWindow"
             :resizable="true"
             syno-id="SYNO.SDS.TelegramBot.Window"
         >
             <div class="tgbot-app">
                 <div class="tgbot-tabs">
-                    <button
-                        v-for="tab in tabs"
-                        :key="tab.id"
+                    <button v-for="tab in tabs" :key="tab.id"
                         :class="['tgbot-tab', { active: activeTab === tab.id }]"
-                        @click="activeTab = tab.id"
-                    >{{ tab.label }}</button>
+                        @click="activeTab = tab.id">{{ tab.label }}</button>
                 </div>
                 <div class="tgbot-body">
                     <StatusPanel v-if="activeTab === 'status'" />
